@@ -92,10 +92,6 @@
       cursor: pointer;
     }
 
-    .add-set:hover {
-      background: #2f2f2f;
-    }
-
     .add-exercise {
       position: fixed;
       bottom: 16px;
@@ -120,13 +116,41 @@
   <button class="add-exercise" onclick="addExercise()">+ Add Exercise</button>
 
   <script>
-    function addExercise(name) {
+    const STORAGE_KEY = 'workout_data_v1';
+
+    function saveWorkout() {
+      const exercises = [];
+
+      document.querySelectorAll('.workout').forEach(ex => {
+        const name = ex.querySelector('.workout-title span').textContent;
+        const sets = [];
+
+        ex.querySelectorAll('tbody tr').forEach(row => {
+          sets.push({
+            weight: row.children[0].querySelector('input').value,
+            reps: row.children[1].querySelector('input').value,
+            done: row.children[2].querySelector('input').checked
+          });
+        });
+
+        exercises.push({ name, sets });
+      });
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(exercises));
+    }
+
+    function loadWorkout() {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      data.forEach(ex => addExercise(ex.name, ex.sets));
+    }
+
+    function addExercise(name, savedSets = null) {
       if (!name) {
         name = prompt('Enter exercise name');
         if (!name) return;
       }
 
-      const id = 'ex_' + Date.now();
+      const id = 'ex_' + Date.now() + Math.random();
 
       const exercise = document.createElement('div');
       exercise.className = 'workout';
@@ -145,35 +169,47 @@
               <th>Done</th>
             </tr>
           </thead>
-          <tbody id="${id}_body">
-            <tr>
-              <td><input type="number"></td>
-              <td><input type="number"></td>
-              <td><input type="checkbox"></td>
-            </tr>
-          </tbody>
+          <tbody id="${id}_body"></tbody>
         </table>
         <button class="add-set" onclick="addSet('${id}_body')">+ Add Set</button>
       `;
 
       document.getElementById('exerciseContainer').appendChild(exercise);
+
+      const body = document.getElementById(`${id}_body`);
+
+      if (savedSets) {
+        savedSets.forEach(s => addSet(`${id}_body`, s));
+      } else {
+        addSet(`${id}_body`);
+      }
+
+      saveWorkout();
     }
 
-    function addSet(bodyId) {
+    function addSet(bodyId, savedSet = null) {
       const tbody = document.getElementById(bodyId);
       const row = document.createElement('tr');
+
       row.innerHTML = `
-        <td><input type="number"></td>
-        <td><input type="number"></td>
-        <td><input type="checkbox"></td>
+        <td><input type="number" value="${savedSet?.weight || ''}"></td>
+        <td><input type="number" value="${savedSet?.reps || ''}"></td>
+        <td><input type="checkbox" ${savedSet?.done ? 'checked' : ''}></td>
       `;
+
+      row.querySelectorAll('input').forEach(i => i.addEventListener('change', saveWorkout));
+
       tbody.appendChild(row);
+      saveWorkout();
     }
 
     function deleteExercise(id) {
       if (!confirm('Delete this exercise?')) return;
       document.getElementById(id).remove();
+      saveWorkout();
     }
+
+    window.onload = loadWorkout;
   </script>
 </body>
 </html>
